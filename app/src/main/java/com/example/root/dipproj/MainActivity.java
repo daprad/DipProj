@@ -18,12 +18,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
-import org.opencv.android.BaseLoaderCallback;
-import org.opencv.android.LoaderCallbackInterface;
-import org.opencv.android.OpenCVLoader;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
+import org.opencv.android.*;
+import org.opencv.core.*;
+import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -169,8 +166,47 @@ public class MainActivity extends AppCompatActivity {
                 c.close();
                 Bitmap thumbnail = (BitmapFactory.decodeFile(picturePath));
                 Log.w("path of image", picturePath + "");
-                viewImage.setImageBitmap(thumbnail);
+                //viewImage.setImageBitmap(thumbnail);
+                Bitmap finalImg = plateImageProc(thumbnail);
+                viewImage.setImageBitmap(finalImg);
             }
+        }
+    }
+
+    public Bitmap plateImageProc(Bitmap thumbnail)
+    {
+        //Bitmap plateImage = thumbnail;
+        Mat imgMat=new Mat(thumbnail.getWidth(), thumbnail.getHeight(), CvType.CV_8UC1);
+        Mat imgMat2=new Mat();
+        Mat imgMat3= new Mat();
+        Utils.bitmapToMat(thumbnail, imgMat);
+        Imgproc.cvtColor(imgMat, imgMat, Imgproc.COLOR_RGB2GRAY);
+        org.opencv.core.Size s = new Size(3,3);
+        Imgproc.createCLAHE();
+        Imgproc.GaussianBlur(imgMat, imgMat, s, 2);
+        Imgproc.erode(imgMat, imgMat2, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+        Imgproc.dilate(imgMat2, imgMat3, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+        Imgproc.Sobel(imgMat, imgMat, CvType.CV_8UC1, 1, 0);
+        Core.absdiff(imgMat, imgMat3, imgMat);
+        Imgproc.threshold(imgMat, imgMat, 123, 255, Imgproc.THRESH_OTSU);
+        Utils.matToBitmap(imgMat, thumbnail);
+        saveBitmaptoSDCard(thumbnail);
+        return thumbnail;
+    }
+
+    public void saveBitmaptoSDCard(Bitmap bm)
+    {
+        OutputStream outStream = null;
+        String extStorageDirectory = Environment.getExternalStorageDirectory().toString();
+        Log.v("savepath", extStorageDirectory);
+        File file = new File(extStorageDirectory, "license_plate.PNG");
+        try {
+            outStream = new FileOutputStream(file);
+            bm.compress(Bitmap.CompressFormat.PNG, 100, outStream);
+        }
+        catch (FileNotFoundException e)
+        {
+            e.printStackTrace();
         }
     }
 
